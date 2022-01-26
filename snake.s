@@ -55,7 +55,7 @@ vbi_game
     sta gamescr+20
     pla
     ;; exit vbi
-    jmp $E642
+    jmp $E462
 
     ;; do nothing. game logic occurs in vbi
 _hold
@@ -64,7 +64,7 @@ _hold
 
     
 ;;; DISPLAY LISTS AND INTERRUPTS
-    *=$3000
+    *=$4000
     ;; title display list
 dl_title
     .byte $70,$70,$70           ; aligning blanks
@@ -89,7 +89,7 @@ dl_game
     .word dl_game               ; loop
 
     ;; game DLI
-    *=$4000
+    *=$5000
 dli_game2
     pha
     ;; wait for hsync
@@ -122,7 +122,7 @@ dli_game
     rti
 
 ;;; GAME DATA
-    *=$5000
+    *=$6000
 body
     .dc 512 0                   ; snake body buffer
 score
@@ -143,7 +143,7 @@ speed
     .dc 1 3                     ; game speed
     
 ;;; SCREEN DATA
-    *=$8000
+    *=$7000
     ;; character set
 chars
     ;; blank char
