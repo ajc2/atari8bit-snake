@@ -5,7 +5,15 @@
     *=$0600
 _entry
     ;; initialization
-
+    ;; set color registers (these don't change for the most part)
+    lda #$00                    ; black
+    sta COLBK
+    lda #$0F                    ; white
+    sta COLOR0
+    lda #$48                    ; red
+    sta COLOR1
+    lda #$CA                    ; green
+    sta COLOR2
     jmp run_game
     
 run_title
@@ -17,7 +25,7 @@ run_title
 
     jmp _hold
 
-    ;; game code
+    ;; game init code
 run_game
     ;; set display list
     lda #<dl_game
@@ -29,14 +37,30 @@ run_game
     sta VDSLST
     lda #>dli_game
     sta VDSLST+1
+    ;; set deferred vblank for game logic
+    lda #<vbi_game
+    sta VVBLKD
+    lda #>vbi_game
+    sta VVBLKD+1
     ;; enable
     lda #NMIEN_DLI | NMIEN_VBI
     sta NMIEN
 
     jmp _hold
 
+    ;; core game logic
+vbi_game
+    pha
+    lda #2
+    sta gamescr+20
+    pla
+    ;; exit vbi
+    jmp $E642
+
+    ;; do nothing. game logic occurs in vbi
 _hold
     jmp _hold
+    
 
     
 ;;; DISPLAY LISTS AND INTERRUPTS
@@ -54,53 +78,46 @@ dl_title
 
     ;; game display list
 dl_game
-    .byte $70,$70,$F0           ; aligning blanks, ending with DLI
+    .byte $70,$70,$70           ; aligning blanks
     .byte $C6                   ; mode 6 text with DLI
     .word gamescr               ; read from gamescr
-    .rept 23
-    .byte $04                   ; 23 lines of mode 4
+    .rept 22
+    .byte $04                   ; 22 lines of mode 4
     .endr
+    .byte $84                   ; mode 4 line with dli
     .byte $41                   ; jump and wait for vblank
     .word dl_game               ; loop
 
     ;; game DLI
     *=$4000
-dli_game
+dli_game2
     pha
     ;; wait for hsync
     sta WSYNC
     ;; set the ROM charset
     lda #$E0
     sta CHBASE
-    lda #$00
-    sta CHBASE+1
     ;; set background color to black
     lda #$00
     sta COLBK
     ;; chain next dli
-    lda #<dli_game2
+    lda #<dli_game
     sta VDSLST
-    lda #>dli_game2
-    sta VDSLST+1
     pla
     rti
-dli_game2
+dli_game
     pha
     ;; wait for hsync
     sta WSYNC
     ;; set the custom charset
-    lda #<chars
-    sta CHBASE
     lda #>chars
-    sta CHBASE+1
+    sta CHBASE
     ;; set background color to brown
-    lda #$14
+    lda #$12
     sta COLBK
     ;; chain previous dli
-    lda #<dli_game
+    lda #<dli_game2
     sta VDSLST
-    lda #>dli_game
-    sta VDSLST+1
     pla
     rti
 
@@ -127,30 +144,6 @@ speed
     
 ;;; SCREEN DATA
     *=$8000
-    ;; title screen data
-titlepat
-    .sbyte +$00, "                    "
-    .sbyte +$00, "                    "
-    .sbyte +$00, "                    "
-    .sbyte +$00, "                    "
-    .sbyte +$40, "       SNAKE        "
-    .sbyte +$00, "                    "
-    .sbyte +$00, "                    "
-    .sbyte +$00, "                    "
-    .sbyte +$00, "                    "
-    .sbyte +$00, "                    "
-    .sbyte +$00, "                    "
-    .sbyte +$00, "                    "
-
-    ;; game screen memory
-gamescr
-    ;; heading
-    .sbyte +$40, " SCORE    "
-    .sbyte +$C0,           " SPEED    "
-    ;; mode 4 game board
-    .byte 0,1,2,3
-    
-
     ;; character set
 chars
     ;; blank char
@@ -181,6 +174,29 @@ chars
     .byte ~00101000
     .byte ~00000000
 
+    ;; title screen data
+titlepat
+    .sbyte +$00, "                    "
+    .sbyte +$00, "                    "
+    .sbyte +$00, "                    "
+    .sbyte +$00, "                    "
+    .sbyte +$80, "       SNAKE        "
+    .sbyte +$00, "                    "
+    .sbyte +$00, "                    "
+    .sbyte +$00, "                    "
+    .sbyte +$00, "                    "
+    .sbyte +$00, "                    "
+    .sbyte +$00, "                    "
+    .sbyte +$00, "                    "
+
+    ;; game screen memory
+gamescr
+    ;; heading
+    .sbyte +$80, " SCORE    "
+    .sbyte +$40,           " SPEED    "
+    ;; mode 4 game board
+    .dc 920 0
+    
     
     ;; entry point address
     *=RUNAD
